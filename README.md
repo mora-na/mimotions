@@ -119,7 +119,7 @@
 ##### 1、添加名为 `CRON_HOURS` 的Variables变量 `Settings-->Secrets and variables-->Actions-->New repository variables` 注意不是Secret
 - 快捷跳转地址 [https://github.com/${你的github用户名}/mimotion/settings/variables/actions](../../settings/variables/actions)
   - 填写自动执行的时间，单位为小时，此处需要设置UTC时间，例如设置 `0,2,4,6,8,14` 则会在北京时间 `8,10,12,14,16,22` 点触发执行
-- 添加完成后可以在Actions中手动触发：`Random Cron` 来触发替换，或者等下一次定时执行时它将会自动替换。
+- 添加完成后，工作流会在每次执行成功后自动更新随机分钟和 cron 表达式。
 
 ##### 2、编辑 **.github/workflows/run.yml** 中的cron表达式
   - cron表达式格式如下: `分 小时 日期 月份 年份`
@@ -129,7 +129,7 @@
     schedule:
       - cron: '0 0,2,4,6,8,14 * * *'
   ```
-  - **注意** 如果已添加 `CRON_HOURS` 变量，则修改此文件的cron表达式会失效，在下次执行 `Random Cron` 后表达式中小时的部分会被覆盖为 `CRON_HOURS` 配置的值
+  - **注意** 如果已添加 `CRON_HOURS` 变量，则修改此文件的cron表达式会失效，在下次执行工作流后表达式中小时的部分会被覆盖为 `CRON_HOURS` 配置的值
 
 - 注意以上两种方式二选一即可，推荐直接使用方式1，变量值填写的是逗号分隔的数字，别乱填别的报错别找我！
 - github actions 0点为执行高峰，排队可能会延后一两小时才执行，建议直接从2开始
@@ -185,13 +185,13 @@
   - 执行步骤中主要关注 `开始` ，点击 `开始` 展开详情
   - 展开后便可以查看到执行日志，如果执行成功，则会显示每个账号当前随机的步数是多少
   - 如果执行失败，则需要根据实际情况分析具体失败原因
-- 对于随机Cron的工作流 `Random Cron`，它会在 `刷步数` 执行成功后触发，执行后会更新cron表达式创建随机的分钟值，然后提交到git仓库。这一步失败的主要原因有：
+- 工作流会在 `刷步数` 执行成功后自动更新 cron 表达式，执行后会提交到 git 仓库。这一步失败的主要原因有：
   - `PAT` Secret变量，也就是个人token设置的不正确
   - `CRON_HOURS` Variable变量设置的不正确，需要逗号分隔的小时字符串例如：`1,3,4,5,6,7` 。不要添加奇奇怪怪的东西
   - 其他请见执行日志
-- 随机Cron运行完毕后可以查看 `cron_change_time` 文件的内容，记录了触发方式、当前触发时间、cron表达式信息、下一次定时触发时间等信息，示例如下：
+- 更新完成后可以查看 `cron_change_time` 文件的内容，记录了触发方式、当前触发时间、cron表达式信息、下一次定时触发时间等信息，示例如下：
   ```log
-  trigger by: workflow_run
+  trigger by: schedule
   current system time:
   UTC: 23-06-03 12:56:53
   北京时间: 23-06-03 20:56:53

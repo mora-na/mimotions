@@ -34,11 +34,24 @@ jobs:
           pip3 install requests pytz pycryptodome
           python3 main.py
 
-      - name: persist tokens
+      - name: 更新随机Cron
+        if: success()
+        run: |
+          source cron_convert.sh
+          echo "configed CRON_HOURS ${{ vars.CRON_HOURS }}"
+          persist_execute_log "${{ github.event_name }}" "${{ vars.CRON_HOURS }}"
+
+      - name: 提交变更
+        if: success()
         run: |
           git config user.name github-actions
           git config user.email github-actions@users.noreply.github.com
+          git pull --rebase --autostash origin master
           git add .
-          git commit -m "persist tokens trigger by ${{ github.event_name }}"
-          git pull --rebase origin master
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          current=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S')
+          git commit -m "[${current}] trigger by ${{ github.event_name }}"
           git push origin master
