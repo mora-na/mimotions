@@ -6,6 +6,10 @@ on:
       - completed
   workflow_dispatch:
 
+concurrency:
+  group: repo-write-master
+  cancel-in-progress: false
+
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
@@ -15,6 +19,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.PAT }} #此处PAT需要申请，教程详见：README
+          fetch-depth: 0
       - name: random cron
         run: |
           source cron_convert.sh
@@ -25,4 +30,5 @@ jobs:
           git add .
           current=`TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S'`
           git commit -m "[${current}] random cron trigger by ${{ github.event_name }}"
+          git pull --rebase origin master
           git push origin master
