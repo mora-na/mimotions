@@ -57,6 +57,35 @@ function hours_except_now {
   echo "$result"
 }
 
+function normalize_hours {
+  local input=$1
+  # remove spaces, quotes and CRLF from workflow variables
+  input="${input//$'\r'/}"
+  input="${input//$'\n'/}"
+  input="${input// /}"
+  input="${input//\'/}"
+  input="${input//\"/}"
+  echo "$input"
+}
+
+function validate_hours {
+  local hours=$1
+  if test -z "$hours"; then
+    return 1
+  fi
+  # only allow comma-separated integers
+  if [[ ! "$hours" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+    return 1
+  fi
+  IFS=',' read -r -a hour_arr <<< "$hours"
+  for h in "${hour_arr[@]}"; do
+    if ((h < 0 || h > 23)); then
+      return 1
+    fi
+  done
+  return 0
+}
+
 function convert_utc_to_shanghai {
   local cron_str=$1
   echo "UTC时间: ${cron_str}"
@@ -84,7 +113,7 @@ function persist_execute_log {
     TZ='UTC' date "+%y-%m-%d %H:%M:%S" | xargs -I {} echo "UTC: {}"
     TZ='Asia/Shanghai' date "+%y-%m-%d %H:%M:%S" | xargs -I {} echo "北京时间: {}"
   } >> cron_change_time
-  current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
+  current_cron=$(grep -E "^[[:space:]]*-[[:space:]]cron:" .github/workflows/run.yml | awk '{print substr($0, index($0,$3))}')
   {
     echo "current cron:"
     convert_utc_to_shanghai "$current_cron"
@@ -94,13 +123,18 @@ function persist_execute_log {
   if [[ $os == "Darwin" ]]; then
     sed_prefix=(sed -i '')
   fi
-  current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
+  current_cron=$(grep -E "^[[:space:]]*-[[:space:]]cron:" .github/workflows/run.yml | awk '{print substr($0, index($0,$3))}')
   cron_hours=$(inspect_hours "$current_cron")
   if test -n "$new_cron_hours"; then
-    cron_hours=$(hours_except_now "$new_cron_hours")
+    new_cron_hours=$(normalize_hours "$new_cron_hours")
+    if validate_hours "$new_cron_hours"; then
+      cron_hours=$(hours_except_now "$new_cron_hours")
+    else
+      echo "WARN: invalid CRON_HOURS '$new_cron_hours', fallback to current workflow cron hours '$cron_hours'."
+    fi
   fi
-  "${sed_prefix[@]}" -E "s/(- cron: ')[0-9]+( [^[:space:]]+ \* \* \*')/\1$((RANDOM % 59)) ${cron_hours} * * *'/g" .github/workflows/run.yml
-  current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
+  "${sed_prefix[@]}" -E "s/(- cron: ')[0-9]+( [^[:space:]]+ \* \* \*')/\1$((RANDOM % 29)) ${cron_hours} * * *'/g" .github/workflows/run.yml
+  current_cron=$(grep -E "^[[:space:]]*-[[:space:]]cron:" .github/workflows/run.yml | awk '{print substr($0, index($0,$3))}')
   {
     echo "next cron:"
     convert_utc_to_shanghai "$current_cron"
@@ -108,4 +142,3 @@ function persist_execute_log {
   } >> cron_change_time
 
 }
-
