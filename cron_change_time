@@ -1,11 +1,11 @@
 trigger by: schedule
 current system time:
-UTC: 26-07-30 10:35:00
-北京时间: 26-07-30 18:35:00
+UTC: 26-07-31 10:50:07
+北京时间: 26-07-31 18:50:07
 current cron:
-UTC时间: '12 8,9 * * *'
-北京时间: '12 16,17 * * *'
-next cron:
 UTC时间: '10 8,9 * * *'
 北京时间: '10 16,17 * * *'
-next exec time: UTC(8:10) 北京时间(16:10)
+next cron:
+UTC时间: '21 8,9 * * *'
+北京时间: '21 16,17 * * *'
+next exec time: UTC(8:21) 北京时间(16:21)
