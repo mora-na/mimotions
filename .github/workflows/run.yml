@@ -2,7 +2,9 @@ name: 刷步数
 
 on:
   schedule:
-    - cron: '21 8,9 * * *'
+    - cron: '38 8 * * *'   # 对应北京时间 16:38
+    - cron: '25 10 * * *'  # 对应北京时间 18:25
+    - cron: '12 12 * * *'  # 对应北京时间 20:12
   workflow_dispatch:
 
 concurrency:
@@ -12,46 +14,46 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - name: Checkout codes
         uses: actions/checkout@v5
         with:
           token: ${{ secrets.PAT }} #此处PAT需要申请，教程详见：README
           fetch-depth: 0
-          
+
       - name: 初始化Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-          
+
+      - name: 随机轻量延迟
+        if: github.event_name == 'schedule'
+        run: |
+          DELAY=$(( RANDOM % 480 ))
+          echo "定时触发，轻量随机等待 $DELAY 秒..."
+          sleep $DELAY
+
       - name: 开始
         env:
-            CONFIG: ${{ secrets.CONFIG }}
-            AES_KEY: ${{ secrets.AES_KEY }}
-            SENDKEY: ${{ secrets.SENDKEY }}
+          CONFIG: ${{ secrets.CONFIG }}
+          AES_KEY: ${{ secrets.AES_KEY }}
+          SENDKEY: ${{ secrets.SENDKEY }}
         run: |
           pip3 install requests pytz pycryptodome
           python3 main.py
 
-      - name: 更新随机Cron
-        if: success()
-        run: |
-          source cron_convert.sh
-          echo "configed CRON_HOURS ${{ vars.CRON_HOURS }}"
-          persist_execute_log "${{ github.event_name }}" "${{ vars.CRON_HOURS }}"
-
-      - name: 提交变更
+      - name: 提交更新数据
         if: success()
         run: |
           git config user.name github-actions
           git config user.email github-actions@users.noreply.github.com
           git pull --rebase --autostash origin master
-          git add .
+          git add encrypted_tokens.data
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
           current=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S')
-          git commit -m "[${current}] trigger by ${{ github.event_name }}"
+          git commit -m "[${current}] update tokens"
           git push origin master

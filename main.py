@@ -20,7 +20,8 @@ import util.zepp_helper as zepp_helper
 
 # 常量定义
 SHANGHAI_TZ = pytz.timezone("Asia/Shanghai")
-TIME_2130_MINUTES = 21 * 60 + 30
+TIME_STAGE1_MINUTES = 17 * 60 + 30  # 17:30 分界点
+TIME_STAGE2_MINUTES = 19 * 60 + 30  # 19:30 分界点
 TOKEN_FILE = Path("encrypted_tokens.data")
 ACCESS_TOKEN_PATTERN = re.compile(r"(?<=access=).*?(?=&)")
 ERROR_CODE_PATTERN = re.compile(r"(?<=error=).*?(?=&)")
@@ -70,9 +71,10 @@ def get_min_max_by_time(
 ) -> tuple[int, int]:
     """根据当前时间和配置返回步数范围。
 
-    时间分界点为21:30：
-    - 21:30前：返回 (MIN, 中间值)
-    - 21:30后：返回 (中间值, MAX)
+    时间分界点为 17:30 和 19:30，将步数区间划分为三段：
+    - 17:30 前（第1次执行）：返回 [MIN, MIN + 1/3*(MAX-MIN)]
+    - 17:30 ~ 19:30（第2次执行）：返回 [MIN + 1/3*(MAX-MIN), MIN + 2/3*(MAX-MIN)]
+    - 19:30 后（第3次执行）：返回 [MIN + 2/3*(MAX-MIN), MAX]
 
     Args:
         account: 账号标识
@@ -93,15 +95,23 @@ def get_min_max_by_time(
     min_step = get_int_value_default(account, config, "MIN_STEP", DEFAULT_MIN_STEP)
     max_step = get_int_value_default(account, config, "MAX_STEP", DEFAULT_MAX_STEP)
 
-    # 计算中间分界值
-    mid_step = (min_step + max_step) // 2
+    if min_step > max_step:
+        min_step, max_step = max_step, min_step
 
-    # 时间判断（21:30为分界点）
+    # 计算三等分点
+    step_diff = max_step - min_step
+    step_1 = min_step + step_diff // 3
+    step_2 = min_step + (step_diff * 2) // 3
+
+    # 时间判断（17:30 与 19:30 为分界点）
     current_total_min = hour * 60 + minute
 
-    if current_total_min < TIME_2130_MINUTES:
-        return min_step, mid_step
-    return mid_step, max_step
+    if current_total_min < TIME_STAGE1_MINUTES:
+        return min_step, step_1
+    elif current_total_min < TIME_STAGE2_MINUTES:
+        return step_1, step_2
+    else:
+        return step_2, max_step
 
 
 def generate_fake_ip() -> str:
